@@ -13,13 +13,27 @@ app.use(bodyParser.json());
 app.use(cors());
 
 // PostgreSQL database configuration
-const pool = new Pool({
+ /* const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
   database: process.env.DB_DATABASE,
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});  */
+
+ const connectionString = process.env.DB_URL;
+
+// Create a connection pool
+  const pool = new Pool({
+    connectionString: connectionString,
+    ssl: {
+      rejectUnauthorized: false
+  }
 });
+ 
 
 const transporter = nodemailer.createTransport({
   service: process.env.EMAIL_SERVICE,
@@ -122,6 +136,25 @@ app.post('/capture-payment', async (req, res) => {
   }
 });
 
+app.get('/test-database-connection', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW() AS current_time');
+    const currentTime = result.rows[0].current_time;
+
+    res.json({
+      success: true,
+      message: 'Database connection successful',
+      currentTime,
+    });
+  } catch (error) {
+    console.error('Error testing database connection', error);
+    res.status(500).json({
+      success: false,
+      message: 'Database connection error',
+      error: error.message,
+    });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
