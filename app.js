@@ -12,7 +12,16 @@ const app = express();
 app.use(bodyParser.json());
 app.use(cors());
 
- const connectionString = process.env.DB_URL;
+// PostgreSQL database configuration
+/* const pool = new Pool({
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_DATABASE,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT,
+});   */
+
+  const connectionString = process.env.DB_URL;
 
 // Create a connection pool
   const pool = new Pool({
@@ -21,7 +30,7 @@ app.use(cors());
       rejectUnauthorized: false
   }
 });
- 
+  
 
 const transporter = nodemailer.createTransport({
   service: process.env.EMAIL_SERVICE,
@@ -140,6 +149,39 @@ app.get('/test-database-connection', async (req, res) => {
       success: false,
       message: 'Database connection error',
       error: error.message,
+    });
+  }
+});
+
+
+const paypalClientId = process.env.PAYPAL_CLIENT_ID;
+
+// Endpoint to provide the PayPal client ID
+app.get('/get-paypal-client-id', (req, res) => {
+    res.json({ clientId: paypalClientId });
+});
+
+app.get('/get-initial-donation-info', async (req, res) => {
+  try {
+    // Fetch initial donation information from the database
+    const donationCountQuery = 'SELECT COUNT(*) FROM details';
+    const totalAmountQuery = 'SELECT COALESCE(SUM(amount), 0) FROM details';
+    const [donationCountResult, totalAmountResult] = await Promise.all([
+      pool.query(donationCountQuery),
+      pool.query(totalAmountQuery),
+    ]);
+
+    const donationCount = donationCountResult.rows[0].count;
+    const totalAmount = parseFloat(totalAmountResult.rows[0].coalesce);
+
+    res.json({
+      donationCount,
+      totalAmount,
+    });
+  } catch (error) {
+    console.error('Error fetching initial donation info:', error);
+    res.status(500).json({
+      error: 'Internal server error',
     });
   }
 });
